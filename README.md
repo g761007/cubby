@@ -1,5 +1,7 @@
 # cubby
 
+English | [繁體中文](README.zh_TW.md)
+
 Unlisted static pages on Cloudflare Pages, like a private gist for HTML. Anyone with the full URL can open a page. Nothing links to it, and search engines are told not to index it.
 
 > This is obscurity, not access control. Anyone who has a URL can open it and forward it. Don't publish secrets here.
