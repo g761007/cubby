@@ -1,0 +1,12 @@
+# macOS Finder metadata (it lists file names, so it would leak page ids if deployed)
+.DS_Store
+
+# Pages: the folder names are the secret URLs, so they never go into git
+public/p/
+
+# Local settings, copied from .env.example
+.env.local
+
+# Wrangler local state
+.wrangler/
+node_modules/
