@@ -10,12 +10,12 @@ SHELL := /bin/bash
 
 # Cloudflare Pages project. Set CUBBY_PAGES_PROJECT, or pass PROJECT=<name>.
 PROJECT := $(CUBBY_PAGES_PROJECT)
-# Base URL printed by `make list`. Set CUBBY_BASE_URL, or pass BASE_URL=...
+# Base URL printed by `make list` and read by `make pull`. Set CUBBY_BASE_URL, or pass BASE_URL=...
 BASE_URL := $(or $(CUBBY_BASE_URL),$(if $(PROJECT),https://$(PROJECT).pages.dev))
 PORT ?= 8000
 WRANGLER := npx --yes wrangler@4
 
-.PHONY: help new list preview check deploy remove deployments delete-deployment login create-project
+.PHONY: help new list preview check deploy pull remove deployments delete-deployment login create-project
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  make %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -45,11 +45,18 @@ check: ## Check public/ against the noindex and privacy rules
 deploy: check ## Run check, then deploy public/ to Cloudflare Pages
 	@CUBBY_PAGES_PROJECT="$(PROJECT)" scripts/deploy.sh
 
-remove: ## Delete a page folder: ID=<page id>
+pull: ## Download pages from the site: ID=<page id> or IDS=<file>; FORCE=1 overwrites
+	@test -n "$(ID)$(IDS)" || { echo "usage: make pull ID=<page id> | IDS=<file of page ids or URLs> [FORCE=1]" >&2; exit 2; }
+	@test -n "$(BASE_URL)" || { echo "error: set CUBBY_PAGES_PROJECT or CUBBY_BASE_URL in .env.local, or pass BASE_URL=<url>" >&2; exit 2; }
+	@python3 scripts/pull.py $(if $(filter 1,$(FORCE)),--force) $(if $(IDS),--ids-file "$(IDS)") "$(BASE_URL)" $(if $(ID),"$(ID)")
+
+remove: ## Move a page folder to .trash/: ID=<page id>
 	@[[ "$(ID)" =~ ^[0-9a-f]{32}$$ ]] || { echo "usage: make remove ID=<32-character page id>" >&2; exit 2; }
 	@test -d "public/p/$(ID)" || { echo "error: public/p/$(ID) does not exist" >&2; exit 1; }
-	@rm -rf "public/p/$(ID)"
-	@echo "Removed public/p/$(ID). Next: make deploy, then delete older deployments (make deployments)."
+	@test ! -e ".trash/$(ID)" || { echo "error: .trash/$(ID) already exists; move or delete it first" >&2; exit 1; }
+	@mkdir -p .trash && mv "public/p/$(ID)" ".trash/$(ID)"
+	@echo "Moved public/p/$(ID) to .trash/$(ID). Next: make deploy, then delete older deployments (make deployments)."
+	@echo "To restore it: mv .trash/$(ID) public/p/"
 
 deployments: ## List deployments on Cloudflare (older ones still serve removed pages)
 	@test -n "$(PROJECT)" || { echo "error: set CUBBY_PAGES_PROJECT in .env.local, or pass PROJECT=<name>" >&2; exit 2; }

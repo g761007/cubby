@@ -29,7 +29,8 @@
 | `make preview` | 在本機提供 `public/`（`PORT=8000`） |
 | `make check` | 依 noindex 與隱私規則檢查 `public/` |
 | `make deploy` | 執行 `check`，再把 `public/` 部署到 Cloudflare Pages |
-| `make remove ID=<id>` | 刪除一個頁面資料夾 |
+| `make pull ID=<id>` | 從網站把頁面下載回 `public/p/`；用 `IDS=<檔案>` 可下載檔案裡列出的所有頁面 |
+| `make remove ID=<id>` | 把一個頁面資料夾移到 `.trash/` |
 | `make deployments` | 列出專案在 Cloudflare 上的部署 |
 | `make delete-deployment DEPLOYMENT=<id>` | 刪除一個部署 |
 | `make login` | 讓 Wrangler 登入 Cloudflare，每台機器一次 |
@@ -40,6 +41,7 @@
 ```text
 Makefile           入口
 .env.example       設定範本，複製成 .env.local 使用
+.trash/            `make remove` 移出的頁面，git 不追蹤
 public/            部署根目錄：這裡的所有內容都能公開存取
   _headers
   robots.txt
@@ -50,6 +52,7 @@ scripts/
   new-page.sh      供 `make new` 使用
   check.py         供 `make check` 使用
   deploy.sh        供 `make deploy` 使用
+  pull.py          供 `make pull` 使用
 ```
 
 絕對不要在 `public/` 裡放頁面網址清單或相關筆記。
@@ -84,7 +87,7 @@ make login
 make create-project
 ```
 
-`public/p/` 已列在 `.gitignore` 中，因為底下的資料夾名稱就是秘密網址。頁面永遠不會進入 git，請自行備份。
+`public/p/` 已列在 `.gitignore` 中，因為底下的資料夾名稱就是秘密網址。頁面永遠不會進入 git，請自行備份。只要還留著頁面 id，就能用 `make pull` 從網站下載回來，詳見[從網站拉回頁面](#從網站拉回頁面)。
 
 ## 設定
 
@@ -93,7 +96,7 @@ Makefile 會讀取 `.env.local`，git 會忽略這個檔案。請從 `.env.examp
 | 變數 | 用途 |
 |---|---|
 | `CUBBY_PAGES_PROJECT`，或在 make 命令列傳入 `PROJECT=` | Cloudflare Pages 專案名稱。`deploy`、`deployments`、`delete-deployment` 和 `create-project` 都需要它。 |
-| `CUBBY_BASE_URL`，或 `BASE_URL=` | `make list` 印出的基本網址，預設為 `https://<project>.pages.dev`。使用自訂網域，或 Cloudflare 給專案的 pages.dev 子網域不同時，請設定此值。 |
+| `CUBBY_BASE_URL`，或 `BASE_URL=` | `make list` 印出、`make pull` 下載時使用的基本網址，預設為 `https://<project>.pages.dev`。使用自訂網域，或 Cloudflare 給專案的 pages.dev 子網域不同時，請設定此值。 |
 | `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID` | 選用。不透過 `make login` 讓 Wrangler 驗證身分，例如在 CI 中。請在 shell 中 export；Makefile 不會把 `.env.local` 的值傳給 Wrangler。絕對不要 commit 這些值。 |
 
 `.env.local` 的值會覆蓋 shell 中 export 的變數，而 make 命令列上的 `PROJECT=` / `BASE_URL=` 又會覆蓋兩者。執行 `make` 可看到目前生效的值。
@@ -178,7 +181,15 @@ curl -sI https://<project>.pages.dev/p/
 make remove ID=<page id>
 ```
 
-由於頁面不在 git 中，這會永久刪除該資料夾。接著執行 `make deploy`。
+這會把頁面資料夾移到 `.trash/<id>/`。git 會忽略這個資料夾，`make deploy` 也不會上傳它。接著執行 `make deploy`。如果 `.trash/<id>` 已經存在，`make remove` 會停止，不做任何變更。
+
+要復原頁面，把它移回去再部署一次：
+
+```bash
+mv .trash/<page id> public/p/
+```
+
+`.trash/` 不會自動清空，不再需要時請自行刪除裡面的資料夾。
 
 每個 Pages 部署都保有自己的 `https://<hash>.<project>.pages.dev` 網址。在你移除頁面之前建立的部署，仍然可以存取到已刪除的頁面。要完全下架，請找出這些部署並刪除：
 
@@ -191,6 +202,27 @@ make delete-deployment DEPLOYMENT=<deployment id>
 ```
 
 Cloudflare 不允許刪除某個分支的最新部署。
+
+## 從網站拉回頁面
+
+`make pull` 會從網站把頁面下載回 `public/p/`，例如換了新電腦，或本機檔案遺失的時候：
+
+```bash
+make pull ID=<page id>
+```
+
+```bash
+make pull IDS=<檔案>
+```
+
+Cloudflare Pages 無法列出或下載某次部署的檔案，所以你必須提供頁面 id。`IDS=` 會讀取檔案中所有的頁面網址，以及只有一個 id 的行，所以 `make list` 的輸出可以直接使用。新增頁面後請把它存起來，放在 `public/` 以外的私密位置，也不要 commit。
+
+- 從每個頁面的 `index.html` 開始，順著 HTML 和 CSS 中的相對連結找出檔案：`src`、`href`、`srcset`、`poster`、`style`、`url()` 和 `@import`。只會下載該頁面自己的 `/p/<id>/` 路徑底下的檔案。
+- 沒有被任何地方連結的檔案，以及只由 JavaScript 載入的檔案，都不會被下載。
+- 頁面的所有檔案都下載完成後才會寫入 `public/p/`，所以拉取失敗不會留下只有一半的頁面。
+- 本機已經存在的頁面會被跳過。加上 `FORCE=1` 會用網站上的版本覆蓋它們的檔案，網站沒有回傳的本機檔案會保留。
+- `make list` 會以拉回的那天作為頁面的新增日期。使用 `FORCE=1` 時，已存在的頁面會保留原本的日期。
+- 要從較舊的部署拉取，例如某個仍提供你已移除頁面的部署，請加上 `BASE_URL=https://<hash>.<project>.pages.dev`。
 
 ## 疑難排解
 

@@ -29,7 +29,8 @@ Everything goes through `make`. Run `make` on its own to list the targets.
 | `make preview` | Serve `public/` on localhost (`PORT=8000`) |
 | `make check` | Check `public/` against the noindex and privacy rules |
 | `make deploy` | Run `check`, then deploy `public/` to Cloudflare Pages |
-| `make remove ID=<id>` | Delete a page folder |
+| `make pull ID=<id>` | Download a page from the site into `public/p/`, or every page listed in a file with `IDS=<file>` |
+| `make remove ID=<id>` | Move a page folder to `.trash/` |
 | `make deployments` | List the project's deployments on Cloudflare |
 | `make delete-deployment DEPLOYMENT=<id>` | Delete one deployment |
 | `make login` | Sign Wrangler in to Cloudflare, once per machine |
@@ -40,6 +41,7 @@ Everything goes through `make`. Run `make` on its own to list the targets.
 ```text
 Makefile           the entry point
 .env.example       settings template; copy it to .env.local
+.trash/            pages moved out by `make remove`, ignored by git
 public/            deploy root: everything in here is publicly reachable
   _headers
   robots.txt
@@ -50,6 +52,7 @@ scripts/
   new-page.sh      used by `make new`
   check.py         used by `make check`
   deploy.sh        used by `make deploy`
+  pull.py          used by `make pull`
 ```
 
 Never keep a list of page URLs, or notes about them, inside `public/`.
@@ -84,7 +87,7 @@ If the Pages project doesn't exist yet, create it once:
 make create-project
 ```
 
-`public/p/` is in `.gitignore`, because the folder names under it are the secret URLs. Pages never go into git, so back them up yourself.
+`public/p/` is in `.gitignore`, because the folder names under it are the secret URLs. Pages never go into git, so back them up yourself. As long as you still have their ids, `make pull` can download them from the site again. See [Pull pages back](#pull-pages-back).
 
 ## Configuration
 
@@ -93,7 +96,7 @@ The Makefile reads `.env.local`, which git ignores. Start from `.env.example`. W
 | Variable | Purpose |
 |---|---|
 | `CUBBY_PAGES_PROJECT`, or `PROJECT=` on the make command line | Cloudflare Pages project name. Required by `deploy`, `deployments`, `delete-deployment` and `create-project`. |
-| `CUBBY_BASE_URL`, or `BASE_URL=` | Base URL that `make list` prints. Defaults to `https://<project>.pages.dev`. Set it if you use a custom domain, or if Cloudflare gave the project a different pages.dev subdomain. |
+| `CUBBY_BASE_URL`, or `BASE_URL=` | Base URL that `make list` prints and `make pull` downloads from. Defaults to `https://<project>.pages.dev`. Set it if you use a custom domain, or if Cloudflare gave the project a different pages.dev subdomain. |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Optional. Authenticate Wrangler without `make login`, for example in CI. Export them in the shell; the Makefile doesn't pass `.env.local` values on to Wrangler. Never commit them. |
 
 Values in `.env.local` override variables exported in the shell, and `PROJECT=` / `BASE_URL=` on the make command line override both. `make` shows the values in effect.
@@ -178,7 +181,15 @@ curl -sI https://<project>.pages.dev/p/
 make remove ID=<page id>
 ```
 
-This deletes the folder for good, since pages aren't in git. Then run `make deploy`.
+This moves the page folder to `.trash/<id>/`, which git ignores and `make deploy` doesn't upload. Then run `make deploy`. If `.trash/<id>` already exists, `make remove` stops without changing anything.
+
+To bring the page back, move it back and deploy again:
+
+```bash
+mv .trash/<page id> public/p/
+```
+
+Nothing empties `.trash/` for you. Delete its folders yourself once you no longer need them.
 
 Each Pages deployment keeps its own `https://<hash>.<project>.pages.dev` URL. A deleted page is still reachable through deployments made before you removed it. To take it down completely, find those deployments and delete them:
 
@@ -191,6 +202,27 @@ make delete-deployment DEPLOYMENT=<deployment id>
 ```
 
 Cloudflare doesn't let you delete the latest deployment of a branch.
+
+## Pull pages back
+
+`make pull` downloads pages from the site into `public/p/`, for example on a new machine or after you lose local files:
+
+```bash
+make pull ID=<page id>
+```
+
+```bash
+make pull IDS=<file>
+```
+
+Cloudflare Pages has no way to list or download the files of a deployment, so you need the page ids. `IDS=` reads every page URL in the file, and every line that holds only an id, so the output of `make list` works as is. Save it after you add pages, and keep it somewhere private, outside `public/` and out of git.
+
+- Files are found by starting at each page's `index.html` and following the relative links in its HTML and CSS: `src`, `href`, `srcset`, `poster`, `style`, `url()` and `@import`. Only files under the page's own `/p/<id>/` path are downloaded.
+- Files that nothing links to, and files that only JavaScript loads, aren't downloaded.
+- A page is written to `public/p/` only after all its files have downloaded, so a failed pull leaves nothing half done.
+- Pages that already exist locally are skipped. Add `FORCE=1` to overwrite their files with the version on the site. Local files that the site didn't return are kept.
+- `make list` shows the day you pulled a page as its date added. With `FORCE=1`, an existing page keeps its date.
+- To pull from an older deployment, such as one that still serves a page you removed, add `BASE_URL=https://<hash>.<project>.pages.dev`.
 
 ## Troubleshooting
 

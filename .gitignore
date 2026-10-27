@@ -3,6 +3,8 @@
 
 # Pages: the folder names are the secret URLs, so they never go into git
 public/p/
+# Pages moved out by `make remove`
+.trash/
 
 # Local settings, copied from .env.example
 .env.local
