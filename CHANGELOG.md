@@ -2,7 +2,7 @@
 
 All notable changes to cubby are recorded here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-30
 
 ### Added
 
@@ -31,6 +31,6 @@ All notable changes to cubby are recorded here. The format is based on [Keep a C
 - `make` targets to add, list, preview, check and deploy pages, remove a page, list and delete deployments, sign in to Cloudflare, and create the Pages project.
 - README in English and Traditional Chinese.
 
-[Unreleased]: https://github.com/g761007/cubby/compare/v1.1.0...HEAD
+[1.2.0]: https://github.com/g761007/cubby/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/g761007/cubby/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/g761007/cubby/releases/tag/v1.0.0
