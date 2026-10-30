@@ -15,7 +15,7 @@ BASE_URL := $(or $(CUBBY_BASE_URL),$(if $(PROJECT),https://$(PROJECT).pages.dev)
 PORT ?= 8000
 WRANGLER := npx --yes wrangler@4
 
-.PHONY: help new list preview check deploy pull remove deployments delete-deployment login create-project
+.PHONY: help new fix list preview check deploy pull remove deployments delete-deployment login create-project
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  make %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -25,6 +25,12 @@ help: ## Show this help
 new: ## Add a page: SRC=page.html, or SRC=folder containing index.html
 	@test -n "$(SRC)" || { echo "usage: make new SRC=path/to/page.html" >&2; exit 2; }
 	@scripts/new-page.sh "$(SRC)"
+
+fix: ## Re-add the doctype and meta tags after replacing a page's files: ID=<page id>, or every page
+	@[[ -z "$(ID)" || "$(ID)" =~ ^[0-9a-f]{32}$$ ]] || { echo "usage: make fix [ID=<32-character page id>]" >&2; exit 2; }
+	@test -z "$(ID)" || test -d "public/p/$(ID)" || { echo "error: public/p/$(ID) does not exist" >&2; exit 1; }
+	@test -n "$(ID)" || test -d public/p || { echo "error: public/p does not exist" >&2; exit 1; }
+	@find "public/p/$(ID)" -name '*.html' -exec python3 scripts/add-meta.py {} +
 
 list: ## List pages with date added, title and URL
 	@for dir in public/p/*/; do \

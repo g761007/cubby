@@ -25,6 +25,7 @@
 | 指令 | 用途 |
 |---|---|
 | `make new SRC=page.html` | 從 HTML 檔案，或含有 `index.html` 的資料夾新增頁面 |
+| `make fix ID=<id>` | 替換頁面檔案後，重新補上 doctype 和 meta 標籤；不加 `ID` 則處理所有頁面 |
 | `make list` | 列出頁面的新增日期、標題和網址 |
 | `make preview` | 在本機提供 `public/`（`PORT=8000`） |
 | `make check` | 依 noindex 與隱私規則檢查 `public/` |
@@ -50,6 +51,7 @@ public/            部署根目錄：這裡的所有內容都能公開存取
   p/<id>/          每個頁面一個資料夾，git 不追蹤
 scripts/
   new-page.sh      供 `make new` 使用
+  add-meta.py      補上 doctype 和 meta 標籤，供 `make new` 和 `make fix` 使用
   check.py         供 `make check` 使用
   deploy.sh        供 `make deploy` 使用
   pull.py          供 `make pull` 使用
@@ -117,6 +119,16 @@ make new SRC=path/to/page.html
 - **警告**：如果頁面已經有不含 `noindex` 的 `robots` meta 標籤，`make new` 只會發出警告而不會改寫，而 `make check` 會一直失敗，直到你手動修正該標籤。
 
 新增頁面後，執行 `make deploy`。之後要查頁面網址，執行 `make list`，它會以頁面資料夾的修改時間作為新增日期。
+
+### 更新頁面
+
+要修改已部署的頁面，直接覆蓋 `public/p/<id>/` 裡的檔案，例如 `index.html`。手動複製檔案不會經過 `make new` 補 meta 標籤的步驟，所以覆蓋後請執行：
+
+```bash
+make fix ID=<page id>
+```
+
+它會為頁面資料夾裡的每個 HTML 檔案補上 doctype 和缺少的 meta 標籤，已經齊全的檔案不會被改動。不加 `ID` 時會處理所有頁面。接著執行 `make deploy`。頁面的 id、網址和新增日期都不變。
 
 ## 本機預覽
 
