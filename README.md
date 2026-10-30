@@ -25,6 +25,7 @@ Everything goes through `make`. Run `make` on its own to list the targets.
 | Command | What it does |
 |---|---|
 | `make new SRC=page.html` | Add a page from an HTML file, or from a folder with `index.html` |
+| `make fix ID=<id>` | Re-add the doctype and meta tags after you replace a page's files; without `ID`, every page |
 | `make list` | List pages with the date added, title and URL |
 | `make preview` | Serve `public/` on localhost (`PORT=8000`) |
 | `make check` | Check `public/` against the noindex and privacy rules |
@@ -50,6 +51,7 @@ public/            deploy root: everything in here is publicly reachable
   p/<id>/          one folder per page, ignored by git
 scripts/
   new-page.sh      used by `make new`
+  add-meta.py      adds the doctype and meta tags, used by `make new` and `make fix`
   check.py         used by `make check`
   deploy.sh        used by `make deploy`
   pull.py          used by `make pull`
@@ -117,6 +119,16 @@ make new SRC=path/to/page.html
 - **Warning:** if a page already has a `robots` meta tag without `noindex`, `make new` warns instead of rewriting it, and `make check` fails until you fix the tag by hand.
 
 After adding a page, run `make deploy`. To find a page's URL later, run `make list`. It shows the page folder's modification time as the date added.
+
+### Update a page
+
+To change a page that is already deployed, overwrite its files in `public/p/<id>/`, such as `index.html`. Copying files in by hand skips the meta tag step of `make new`, so run:
+
+```bash
+make fix ID=<page id>
+```
+
+It adds the doctype and any missing meta tags to every HTML file in the page folder, and leaves files that already have them unchanged. Without `ID`, it goes through every page. Then run `make deploy`. The page keeps its id, URL and date added.
 
 ## Preview locally
 

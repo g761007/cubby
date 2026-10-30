@@ -36,48 +36,8 @@ else
   exit 1
 fi
 
-# Every HTML page gets a doctype and the noindex / no-referrer meta tags, as a
-# fallback for the _headers rules.
-while IFS= read -r -d '' file; do
-  python3 - "$file" "$public" <<'PY'
-import os, re, sys
-
-path, public = sys.argv[1], sys.argv[2]
-html = open(path, encoding="utf-8").read()
-added = []
-
-tags = []  # (label, tag)
-if not re.search(r"<meta[^>]+charset", html, re.I):
-    tags.append(("charset", '<meta charset="utf-8">'))
-for name, content in (("robots", "noindex, nofollow, noarchive"),
-                      ("googlebot", "noindex, nofollow"),
-                      ("referrer", "no-referrer")):
-    existing = re.search(r"<meta[^>]+name=[\"']?%s[\"'\s>][^>]*>" % name, html, re.I)
-    if not existing:
-        tags.append((name, f'<meta name="{name}" content="{content}">'))
-    elif name != "referrer" and "noindex" not in existing.group(0).lower():
-        print(f"warning: {os.path.relpath(path, public)} has a {name} meta without noindex", file=sys.stderr)
-
-if tags:
-    block = "\n".join(tag for _, tag in tags) + "\n"
-    head = re.search(r"<head(\s[^>]*)?>", html, re.I)
-    if head:
-        html = html[:head.end()] + "\n" + block + html[head.end():]
-    else:
-        # Without <head>, the parser opens one implicitly, so tags placed right after
-        # the doctype / <html> still end up in <head>.
-        top = re.match(r"\s*(<!doctype[^>]*>\s*)?(<html(\s[^>]*)?>\s*)?", html, re.I)
-        html = html[:top.end()] + block + html[top.end():]
-    added += [label for label, _ in tags]
-
-if not re.match(r"\s*<!doctype html", html, re.I):
-    html = "<!DOCTYPE html>\n" + html.lstrip()
-    added.insert(0, "doctype")
-
-open(path, "w", encoding="utf-8").write(html)
-print(f"  {os.path.relpath(path, public)}: " + (("added " + ", ".join(added)) if added else "ok"))
-PY
-done < <(find "$dest" -name '*.html' -print0)
+# Every HTML page gets a doctype and the noindex / no-referrer meta tags.
+find "$dest" -name '*.html' -exec python3 "$root/scripts/add-meta.py" {} +
 
 echo "Created public/p/$id/"
 echo "URL path: /p/$id/"

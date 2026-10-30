@@ -2,6 +2,16 @@
 
 All notable changes to cubby are recorded here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-10-30
+
+### Added
+
+- `make fix ID=<id>` adds the doctype and any missing meta tags to a page after you overwrite its files by hand, such as replacing `index.html` with a new version. Without `ID`, it goes through every page. Files that already have the tags are left unchanged.
+
+### Changed
+
+- The meta tag step of `make new` moved from `scripts/new-page.sh` to `scripts/add-meta.py`, which `make fix` also uses.
+
 ## [1.1.0] - 2026-10-27
 
 ### Added
@@ -21,5 +31,6 @@ All notable changes to cubby are recorded here. The format is based on [Keep a C
 - `make` targets to add, list, preview, check and deploy pages, remove a page, list and delete deployments, sign in to Cloudflare, and create the Pages project.
 - README in English and Traditional Chinese.
 
+[1.2.0]: https://github.com/g761007/cubby/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/g761007/cubby/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/g761007/cubby/releases/tag/v1.0.0
